@@ -1,0 +1,154 @@
+// Function to send data from Assignment 2 to Sheet X based on predefined settings
+function sendDataToSheet() {
+  // Get the source spreadsheet and sheet (Raw Data)
+  var sourceSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = sourceSpreadsheet.getSheetByName('Raw Data');
+  var panelSheet = sourceSpreadsheet.getSheetByName('Sheet1')
+
+  // Get the dedicated cell values for destination file link, sheet name, and predefined range
+  var destinationSheetLink = panelSheet.getRange('B1').getValue();  // Where B1 has the destination file link
+  var sheetName = panelSheet.getRange('B2').getValue(); // Where B2 has the sheet name
+  var predefinedRange = panelSheet.getRange('B3').getValue();  // Where B3 has the predefined range
+
+  // Get font color, font family, and font weight settings from the source sheet
+  var headerColor = sourceSheet.getRange('A1').getFontColorObject(); 
+  var cellColor = sourceSheet.getRange('A2').getFontColorObject();
+  var headerFont = sourceSheet.getRange('A1').getFontFamily();
+  var cellFont = sourceSheet.getRange('A2').getFontFamily();
+  var headerWheight = sourceSheet.getRange('A1').getFontWeight();
+  var cellWheight = sourceSheet.getRange('A2').getFontWeight();
+
+  // Check if destinationSheetLink, sheetName, and predefinedRange are not empty
+  if (destinationSheetLink && sheetName && predefinedRange) {
+    // Proceed with the transfer to Sheet X
+    var destinationSpreadsheet = SpreadsheetApp.openByUrl(destinationSheetLink);
+    var destinationSheet = destinationSpreadsheet.getSheetByName(sheetName);
+
+    // Get the data based on the predefined range
+    var data = sourceSheet.getRange(predefinedRange).getValues();
+
+    // Check if the data array is not empty
+    if (data.length > 0) {
+      // Use the function to send data while preserving formats
+      sendDataToDestinationSheet(destinationSheet, data);
+      
+      // Loop through each cell after sending data and set font color and font family
+      for (var i = 1; i <= data.length; i++) {
+        for (var j = 1; j <= data[0].length; j++) {
+          var cell = destinationSheet.getRange(i, j);
+          // Set font color and font family based on header or cell
+          if (i == 1) {
+            cell.setFontColor(headerColor);
+            cell.setFontFamily(headerFont);
+            cell.setFontWeight(headerWheight);
+          } else {
+            cell.setFontColor(cellColor);
+            cell.setFontFamily(cellFont);
+            cell.setFontWeight(cellWheight);
+          }
+        }
+      }
+    } else {
+      Browser.msgBox('No data found in the predefined range.');
+    }
+  } else {
+    Browser.msgBox('Destination file link, sheet name, or predefined range is empty.');
+  }
+}
+
+// Function to send data to a destination sheet without appending
+function sendDataToDestinationSheet(destinationSheet, data) {
+  // Clears the destination Sheet before sending the new data
+  destinationSheet.clear();
+
+  // Assuming the data should be sent starting from the first row of the destination sheet
+  destinationSheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+}
+
+// Function to append data from Sheet X back to Assignment 2
+function AppendDataToSheet() {
+  // Get the source spreadsheet and sheet (Raw Data)
+  var sourceSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = sourceSpreadsheet.getSheetByName('Raw Data');
+  var panelSheet = sourceSpreadsheet.getSheetByName('Sheet1')
+
+  // Get the dedicated cell values for the source file link, sheet name, and predefined range
+  var newSourceSheetLink = panelSheet.getRange('B5').getValue();  // Where B5 has the source file link
+  var sheetName = panelSheet.getRange('B6').getValue(); // Where B6 has the sheet name
+  var predefinedRange = panelSheet.getRange('B7').getValue();  // Where B7 has the predefined range
+
+  // Check if newSourceSheetLink, sheetName, and predefinedRange are not empty
+  if (newSourceSheetLink && sheetName && predefinedRange) {
+    // Proceed with the transfer from Sheet X to Assignment 2
+    var newSourceSpreadsheet = SpreadsheetApp.openByUrl(newSourceSheetLink);
+    var newSourceSheet = newSourceSpreadsheet.getSheetByName(sheetName);
+
+    // Get the data based on the predefined range
+    var data = newSourceSheet.getRange(predefinedRange).getValues();
+
+    // Check if the data array is not empty
+    if (data.length > 0) {
+      // Use the function to append data while preserving formats
+      appendDataToLastBlankRow(sourceSheet, data);
+      
+      // Loop through each cell after sending data and set font color and font family
+      for (var i = 1; i <= data.length; i++) {
+        for (var j = 1; j <= data[0].length; j++) {
+          var cell = newSourceSheet.getRange(i, j);
+          // Set font color and font family based on header or cell
+          if (i == 1) {
+            cell.setFontColor(headerColor);
+            cell.setFontFamily(headerFont);
+            cell.setFontWeight(headerWheight);
+          } else {
+            cell.setFontColor(cellColor);
+            cell.setFontFamily(cellFont);
+            cell.setFontWeight(cellWheight);
+          }
+        }
+      }
+    } else {
+      Browser.msgBox('No data found in the predefined range.');
+    }
+  } else {
+    Browser.msgBox('Source file link, sheet name, or predefined range is empty.');
+  }
+}
+
+// Function to append data to the last blank row of the destination sheet
+function appendDataToLastBlankRow(destinationSheet, data) {
+  // Append data to the destination sheet
+  var lastRow = destinationSheet.getLastRow();
+  destinationSheet.getRange(lastRow + 1, 1, data.length, data[0].length).setValues(data);
+}
+
+// Function to automate the transfer of data at specified intervals
+function automateSending() {
+  var sourceSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sourceSheet = sourceSpreadsheet.getSheetByName('Sheet1');
+
+  var functionName = 'AppendDataToSheet';
+  var triggers = ScriptApp.getProjectTriggers();
+  var time = sourceSheet.getRange('B11').getValue();
+
+  // Check if a trigger is already set for the specified function
+  var existingTrigger = triggers.find(function(trigger) {
+    return trigger.getHandlerFunction() === functionName;
+  });
+
+  if (existingTrigger) {
+    // If trigger exists, delete it to deactivate the automation
+    ScriptApp.deleteTrigger(existingTrigger);
+    sourceSheet.getRange('B10').setValue('Disabled'); 
+    Logger.log('Trigger deactivated for ' + functionName);
+  } else {
+    // If trigger does not exist, create a new time-based trigger
+    ScriptApp.newTrigger(functionName)
+      .timeBased()
+      .everyHours(time) // You can customize the trigger settings as needed
+      .create();
+    
+    sourceSheet.getRange('B10').setValue('Activated');
+    Logger.log('Trigger activated for ' + functionName);
+  }
+}
